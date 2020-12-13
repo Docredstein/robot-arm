@@ -1,7 +1,8 @@
 import tkinter
 import tkinter.filedialog
-
+import tkinter.messagebox
 import serial 
+import serial.tools.list_ports
 from time import sleep
 import time
 import os 
@@ -72,7 +73,34 @@ master.title('Contrôle bras SI 2020')
 master.iconbitmap(rf"{dir_path}\icons.ico")
 master.geometry("800x800")
 master.configure(background=r'#0f0b0d')
-
+def start() :
+    inp = tkinter.Toplevel()
+    inp.title("Settings")
+    inp.geometry("230x250")
+    inp.configure(background=r'#0f0b0d')
+    prec = tkinter.Button(inp,fg =fg, highlightbackground=highlightbackground,background=bg,relief=tkinter.RIDGE,activebackground=highlightbackground, text="charger les anciens par.")
+    prec.place(relx=0.375,rely=0.9,anchor=tkinter.W)
+    liste = tkinter.Listbox(inp,fg =fg, background=bg,relief=tkinter.RIDGE,height=3)
+    x = 0
+    portCom = ListPortCom()
+    print(portCom)
+    for i in portCom :
+        liste.insert(x,i)
+        x=x+1
+    liste.yview()
+    liste.place(relx=0.5,rely=0.2,anchor=tkinter.CENTER)
+    saveBB = tkinter.Button(inp,fg =fg, highlightbackground=highlightbackground,background=bg,relief=tkinter.RIDGE,activebackground=highlightbackground, text="enregistrer")
+    saveBB.place(relx=0.075,rely=0.9,anchor=tkinter.W)
+    debounceEntry = tkinter.Entry (inp,highlightbackground=highlightbackground,background=bg,relief=tkinter.RIDGE, text="temps",foreground=fg) 
+    debounceEntry.place(relx=0.5,rely=0.5,anchor=tkinter.CENTER)
+    bauds= tkinter.Entry (inp,highlightbackground=highlightbackground,background=bg,relief=tkinter.RIDGE, text="bauds",foreground=fg) 
+    bauds.place(relx=0.5,rely=0.6,anchor=tkinter.CENTER)
+    baudsLabel = tkinter.Label(inp,text = "bauds :", fg =fg, highlightbackground=highlightbackground,background=background,relief=tkinter.FLAT,activebackground=highlightbackground)
+    baudsLabel.place(relx=0.1,rely=0.6,anchor=tkinter.CENTER)
+    debounceLabel = tkinter.Label(inp,text = "délai :", fg =fg, highlightbackground=highlightbackground,background=background,relief=tkinter.FLAT,activebackground=highlightbackground)
+    debounceLabel.place(relx=0.1,rely=0.5,anchor=tkinter.CENTER)
+    msLabel = tkinter.Label(inp,text = "ms", fg =fg, highlightbackground=highlightbackground,background=background,relief=tkinter.FLAT,activebackground=highlightbackground)
+    msLabel.place(relx=0.85,rely=0.5,anchor=tkinter.CENTER)
 def save() :
     file = open('Saved.txt',"a")
     file.write(f"{test(0)}\n")
@@ -108,6 +136,8 @@ def trjExt() :
     print(trj)
 def trjPlay() :
     global trj 
+
+    perf = time.time()
     if len(trj) !=0 :
         try :
             if len(trj[0]) !=0 :
@@ -122,22 +152,23 @@ def trjPlay() :
                         
                         current = [0,0,0,0,0,0,0]
                         exectime=0
-                        for x in range(1,trj[i][6]+1) :
-                            sleep(0.0009)
+                        a = lambda x,y : round((((trj[i][y]-trj[i-1][y])/trj[i][6])*x)+trj[i-1][y])
+                        for x in range(1,round((trj[i][6]+1)/10)) :
+                            if (0.01-exectime) >0 :
+                                sleep(0.01-exectime)
                             timen = time.time()
                             for j in range(6) : 
                                 
-                                current[j] = round((((trj[i][j]-trj[i-1][j])/trj[i][6])*x)+trj[i-1][j])
-                                print("---------------")
+                                current[j] = a(x,j)
+                                #print("---------------")
                             current[6]=x
-                            print(current)
-                            for w in current :
+                            #print(current)
+                            '''for w in current :
                                 debug.write(f'{w};')
-                            debug.write('\n')
+                            debug.write('\n')'''
                             setSlider(current)
                             stripSend(current)
                             exectime=time.time()-timen
-                            
 
                         
 
@@ -146,8 +177,11 @@ def trjPlay() :
             SendCom(i)'''
             pass
     else :
-        print('trajectoire vide')
-                   
+        #print('trajectoire vide')
+        tkinter.messagebox.showerror(title="erreur",message="trajectoire vide")
+    print(time.time()-perf)
+    print(f'{(((time.time()-perf-15)/15)*100)} %')
+    print(exectime)          
 def posClear():
     pos1.clear()
     pos2.clear()
@@ -158,6 +192,12 @@ def posClear():
     pos7.clear()
     pos8.clear()
     pos9.clear()
+def ListPortCom():
+    ports = serial.tools.list_ports.comports()
+    out=[]
+    for port, desc, hwid in sorted(ports):
+        out.append(port)
+    return out
 def stripSend(list)  :
     out = []
     for i in range(len(list)) :
@@ -226,6 +266,8 @@ def setSlider(list) :
     d.set(list[3])
     e.set(list[4])
     f.set(list[5])
+
+
 a = tkinter.Scale(master, from_=0, to=180,tickinterval=20, length=600, orient="horizontal",background=bg,highlightthickness=2,fg=fg,highlightbackground=highlightbackground,relief=tkinter.RIDGE,activebackground=highlightbackground, command = test)
 a.pack()
 a.place(relx=0.5, rely=4/30, anchor=tkinter.CENTER)
@@ -296,7 +338,8 @@ trjUnlBt.place(relx=0.805,rely=0.06,anchor=tkinter.W)
 posClBt = tkinter.Button(master, command=posClear, fg =fg, highlightbackground=highlightbackground,background=bg,relief=tkinter.RIDGE,activebackground=highlightbackground, text="RàZ pos")
 posClBt.place(relx=0.46,rely=0.06,anchor=tkinter.W)
 
-
+BtSetting = tkinter.Button(master, command=start, fg =fg, highlightbackground=highlightbackground,background=bg,relief=tkinter.RIDGE,activebackground=highlightbackground, text="paramètre")
+BtSetting.place(relx=0.545,rely=0.06,anchor=tkinter.W)
 pos1 = Pos(1,0.01,0.06)
 pos2 = Pos(2,0.06,0.06)
 pos3 = Pos(3,0.11,0.06)
